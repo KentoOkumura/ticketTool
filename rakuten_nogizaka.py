@@ -114,26 +114,9 @@ def init(idx, tid):
     cookie[idx]      = pickle.load(open('cookie\\{}'.format(cookie_file[idx]), "rb"))
     print(cookie_file[idx])
 
-    #driver[tid].get('http://www.google.com')
-    content = requests.get('http://www.google.com').content
+    driver[tid].get('http://www.google.com')
 
-    data_encode_bytes = base64.b64encode(content)
-    data_encode_str = data_encode_bytes.decode('utf-8')
-    #print(data_encode_str)
-    #driver[tid].get("data:text/html;charset=utf-8," + str(content, 'utf-8'))
-    #driver[tid].get("data:text/html;charset=utf-8:base64," + str(data_encode_str))
     
-    
-    #data_bytes = bytes(content)
-    # data_encode_bytes = base64.b64encode(content)
-    # data_encode_str = data_encode_bytes.decode('utf-8')
-    # print(data_encode_str)
-    driver[tid].execute_script("""
-    document.location = 'about:blank';
-    document.open();
-    document.write(arguments[0]);
-    document.close();
-    """, "PGh0bWw+PGhlYWQ+PG1ldGEgY2hhcnNldD0iVVRGLTgiPjx0aXRsZT7jgr/jgqTjg4jjg6s8L3RpdGxlPjxzY3JpcHQgc3JjPSJodHRwOi8vYWpheC5nb29nbGVhcGlzLmNvbS9hamF4L2xpYnMvanF1ZXJ5LzIuMS4zL2pxdWVyeS5taW4uanMiPjwvc2NyaXB0PjxzdHlsZT5kaXYgeyBib3JkZXItYm90dG9tOnNvbGlkOyB3aWR0aDo2MDBweDsgfWltZyB7IHdpZHRoOjUwcHg7IGhlaWdodDo1MHB4O31saSB7IGZsb2F0OmxlZnQ7IGxpc3Qtc3R5bGU6bm9uZTsgd2lkdGg6NTAwcHg7IGhlaWdodDogNjBweDsgfS5jbGVhciB7IGNsZWFyOmJvdGg7IH08L3N0eWxlPjwvaGVhZD48Ym9keT48ZGl2IGNsYXNzPSJjbGVhciI+44Kz44Oz44OG44Oz44OE6Kqt44G/6L6844G/PC9kaXY+PHVsPjxsaSBjbGFzcz0iY2xlYXIiPuebuOWvviA9PjwvbGk+PGxpPjxpbWcgc3JjPSIuL3JlbGF0aXZlLnBuZyI+PC9saT48bGkgY2xhc3M9ImNsZWFyIj7jg5vjgrnjg4jnm7jlr74gPT48L2xpPjxsaT48aW1nIHNyYz0iL2Fic29sdXRlLnBuZyI+PC9saT48bGkgY2xhc3M9ImNsZWFyIj7ntbblr74oaHR0cDrjgYLjgoopID0+PC9saT48bGk+PGltZyBzcmM9Imh0dHA6Ly9jZG4ucWlpdGEuY29tL2Fzc2V0cy9zaXRlaWQtcmV2ZXJzZS05YjM4ZTI5N2JiZDAyMDM4MGZlZWQ5OWI0NDRjNjIwMi5wbmciPjwvbGk+PGxpIGNsYXNzPSJjbGVhciI+57W25a++KGh0dHA644Gq44GXKSA9PjwvbGk+PGxpPjxpbWcgc3JjPSIvL2Nkbi5xaWl0YS5jb20vYXNzZXRzL3NpdGVpZC1yZXZlcnNlLTliMzhlMjk3YmJkMDIwMzgwZmVlZDk5YjQ0NGM2MjAyLnBuZyI+PC9saT48L3VsPjxkaXYgY2xhc3M9ImNsZWFyIj5KYXZhU2NyaXB0PC9kaXY+PHVsPjxsaSBjbGFzcz0iY2xlYXIiPkNvb2tpZSh3aW5kb3cuZG9jdW1lbnQud3JpdGUod2luZG93LmRvY3VtZW50LmNvb2tpZSkpID0+PC9saT48bGk+PHNjcmlwdD53aW5kb3cuZG9jdW1lbnQud3JpdGUod2luZG93LmRvY3VtZW50LmNvb2tpZSk8L3NjcmlwdD48L2xpPjxsaSBjbGFzcz0iY2xlYXIiPuODreODvOOCq+ODq+OCueODiOODrOODvOOCuCh3aW5kb3cuZG9jdW1lbnQud3JpdGUod2luZG93LmxvY2FsU3RvcmFnZSkpID0+PC9saT48bGk+PHNjcmlwdD53aW5kb3cuZG9jdW1lbnQud3JpdGUod2luZG93LmxvY2FsU3RvcmFnZSk8L3NjcmlwdD48L2xpPjxsaSBjbGFzcz0iY2xlYXIiPuOCu+ODg+OCt+ODp+ODs+OCueODiOODrOODvOOCuCh3aW5kb3cuZG9jdW1lbnQud3JpdGUod2luZG93LnNlc3Npb25TdG9yYWdlKSkgPT48L2xpPjxsaT48c2NyaXB0PndpbmRvdy5kb2N1bWVudC53cml0ZSh3aW5kb3cuc2Vzc2lvblN0b3JhZ2UpPC9zY3JpcHQ+PC9saT48bGkgY2xhc3M9ImNsZWFyIj5BamF4ID0+PC9saT48bGk+PHNjcmlwdD4kLmdldEpTT04oJ2h0dHA6Ly9leHByZXNzLmhlYXJ0cmFpbHMuY29tL2FwaS9qc29uP21ldGhvZD1nZXRTdGF0aW9ucyZsaW5lPUpSJUU1JUIxJUIxJUU2JTg5JThCJUU3JUI3JTlBJywge30sIGZ1bmN0aW9uKGpzb24pIHsgd2luZG93LmRvY3VtZW50LndyaXRlKGpzb24ucmVzcG9uc2Uuc3RhdGlvblswXS5uYW1lKTsgfSk8L3NjcmlwdD48L2xpPjxsaSBjbGFzcz0iY2xlYXIiPuOBoOOBn+OBruabuOi+vOOBvyh3aW5kb3cuZG9jdW1lbnQud3JpdGUoJ0phdmFTY3JpcHQgT0snKSkgPT48L2xpPjxsaT48c2NyaXB0PndpbmRvdy5kb2N1bWVudC53cml0ZSgnSmF2YVNjcmlwdCBPSycpPC9zY3JpcHQ+PC9saT48L3VsPjwvYm9keT48L2h0bWw+")
     for i in cookie[idx]:
         driver[tid].add_cookie(i)
 
@@ -159,9 +142,10 @@ def do_exec(idx, tid):
             try:
                 page1 = driver[tid].find_element_by_xpath(performance_date).get_attribute('href').split('/agreement')[0]
                 purchase_page = driver[tid].find_element_by_xpath(performance_date).get_attribute('href')
+                page2 = driver[tid].find_element_by_xpath(performance_date).get_attribute('href').split('/agreement')[1]
             except:
                 continue
-            page2 = driver[tid].find_element_by_xpath(performance_date).get_attribute('href').split('/agreement')[1]
+
             try:
                 driver[tid].find_element_by_xpath(performance_date).click()
             except:
@@ -176,8 +160,7 @@ def do_exec(idx, tid):
         driver[tid].find_element_by_id('loginInner_p').clear()
         driver[tid].find_element_by_id('loginInner_u').send_keys(userID)
         driver[tid].find_element_by_id('loginInner_p').send_keys(password)        
-        # driver[tid].find_element_by_id('loginInner_u').send_keys('kentookumura6@gmail.com')
-        # driver[tid].find_element_by_id('loginInner_p').send_keys('kento5735')
+  
         try:
             driver[tid].find_element_by_class_name('loginButton').click()
         except:
@@ -294,7 +277,7 @@ def load(idx, tid):
         time.sleep(60)
         select_ticket(idx, tid)
         
-def run(idx, start_tiem):
+def run(idx, start_time):
     
     tid = threading.get_ident()
     #ブラウザ立ち上げ
