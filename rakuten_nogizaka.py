@@ -18,6 +18,7 @@ import threading
 import re
 import pickle
 import subprocess
+from queue import Queue
 
 th_objs    = [] #スレッドの配列
 driver     = {} #各スレッドのwebdriverオブジェクト格納用
@@ -26,9 +27,16 @@ break_cap  = 0
 recaptcha_page = None
 loopflg = True
 
-proc    = subprocess.Popen('c:\\Users\\kento\\Desktop\\Python\\Tor Browser\\Browser\\firefox.exe')
+#proc    = subprocess.Popen('c:\\Users\\kento\\Desktop\\Python\\Tor Browser\\Browser\\firefox.exe')
 options = webdriver.ChromeOptions()
-options.add_argument("--proxy-server=socks5://127.0.0.1:9150")
+#proxy   = ['140.227.230.89:60088', '140.227.74.14:3128']
+proxy   = '140.227.74.14:3128'
+#options.add_argument("--proxy-server=socks5://127.0.0.1:9150")
+fifo = Queue()
+for i in proxy:
+    fifo.put(i)
+
+options.add_argument('--proxy-server=http://%s' % proxy)
 
 #ブラウザのサイズと表示位置
 # browsers = [
@@ -69,6 +77,7 @@ def start_browser(idx, tid):
     driver[tid].set_window_size(browser['size-x'], browser['size-y'])
     driver[tid].set_window_position(browser['pos-x'], browser['pos-y'])
 
+    
 def init(idx, tid):
     
     cookie_file = 'cookie{}.pkl'.format(idx)
@@ -98,18 +107,19 @@ def init(idx, tid):
     for cookie in cookies:
         driver[tid].add_cookie(cookie)
 
+        
 def do_exec(idx, tid):
     
     global recaptcha_page
     global loopflg
     #while True:
-    for n in range(10):
+    for n in range(50):
         if recaptcha_page is None:
             driver[tid].get(ticket_page)
             driver[tid].execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            actions = ActionChains(driver[tid])
+            #actions = ActionChains(driver[tid])
             #actions.move_to_element(driver[tid].find_element_by_xpath(purchase_button))
-            actions.perform()
+            #actions.perform()
         
             try:
                 page1 = driver[tid].find_element_by_xpath(purchase_button).get_attribute('href').split('/agreement')[0]
@@ -120,7 +130,8 @@ def do_exec(idx, tid):
             recaptcha_page = page1 + page2 + '/recaptcha'
 
         else:
-            driver[tid].get(recaptcha_page)
+            #driver[tid].get(recaptcha_page)
+            driver[tid].execute_script('location.reload(true);')
         
         if "楽天会員ログイン" in driver[tid].page_source:
             driver[tid].find_element_by_id('loginInner_p').send_keys('kento5735')
@@ -132,7 +143,38 @@ def do_exec(idx, tid):
             #pass
             loopflg = False
             break
+
         
+def select_ticket(idx, tid):
+    driver[tid].execute_script('var element=document.getElementById("selectProductTemplate"); element.style.display="";')
+    driver[tid].find_element_by_css_selector("#seatTypeList > li").click()
+    seat_element = driver[tid].find_element_by_css_selector("#selectProductTemplate > div.productListContainer > ul.productList.payment-seat-products > li > span.productQuantity > select")
+    seat_select_element = Select(seat_element)
+    driver[tid].execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    wait = WebDriverWait(driver[tid], 5)
+    wait.until(EC.element_to_be_clickable( (By.CSS_SELECTOR,"#selectProductTemplate > div.productListContainer > ul.productList.payment-seat-products > li > span.productQuantity > select")))
+    seat_select_element.select_by_value('2')
+    
+    wait.until(EC.element_to_be_clickable( (By.CSS_SELECTOR,"#selectProductTemplate > div.productListContainer > ul.buttonSet > li:nth-child(3) > a")))
+    driver[tid].find_element_by_css_selector("#selectProductTemplate > div.productListContainer > ul.buttonSet > li:nth-child(3) > a").click()
+
+    try:
+        driver[tid].find_element_by_xpath('/html/body/div[9]/div[2]/div[2]/a[2]').click()
+    except:
+        pass
+
+    
+# def settlement(idx, tid):
+#     /html/body/div[1]/div[2]/form/div[1]/div/div[1]/div/table/tbody/tr[1]/td[2]/dl/dt
+#     /html/body/div[1]/div[2]/form/div[1]/div/div[2]/div/table/tbody/tr[1]/td[2]/dl/dt
+#     /html/body/div[1]/div[2]/form/div[1]/div/div[3]/div/table/tbody/tr[1]/td[2]/dl/dt
+
+#     /html/body/div[1]/div[2]/form/div[1]/div/div[1]/div/table/tbody/tr[1]/td[1]/input
+#     /html/body/div[1]/div[2]/form/div[1]/div/div[2]/div/table/tbody/tr[1]/td[1]/input
+#     /html/body/div[1]/div[2]/form/div[1]/div/div[3]/div/table/tbody/tr[1]/td[1]/input
+
+#     /html/body/div[1]/div[2]/form/p/img
+    
 def uncaptcha():
 
     service_key     = '7faed6a88ee62d38c1e16e8eda0e4a67'         # 2captcha service key API KEY
@@ -158,6 +200,7 @@ def uncaptcha():
     print('Google response token: ', resp.text[3:])
     recaptchas.append( {'get_time':datetime.datetime.now(), 'key':resp.text[3:]} )
     print ('recaptchasの長さ',len(recaptchas)) 
+
     
 def load(idx, tid):
 
@@ -171,27 +214,30 @@ def load(idx, tid):
     if driver[tid].current_url == recaptcha_page:
         wait = WebDriverWait(driver[tid], 5)
         wait.until(EC.presence_of_element_located( (By.ID,'g-recaptcha-response') ))
-        driver[tid].execute_script('var element=document.getElementById("g-recaptcha-response"); element.style.display="";')
+        # driver[tid].execute_script('var element=document.getElementById("g-recaptcha-response"); element.style.display="";')
 
-        while True:
-            while len(recaptchas) == 0:
-                pass
-            recaptcha = recaptchas[0]
-            print(recaptcha['get_time'])            
-            time_diff = datetime.datetime.now() - recaptcha['get_time']
-            if time_diff.seconds < 110:
-                break
-            print('取得してから2分経過')
-            recaptchas.pop(0) #取得してから2分経ったキーは捨てる
-            print ('recaptchasの長さ',len(recaptchas))
+        # while True:
+        #     while len(recaptchas) == 0:
+        #         pass
+        #     recaptcha = recaptchas[0]
+        #     print(recaptcha['get_time'])            
+        #     time_diff = datetime.datetime.now() - recaptcha['get_time']
+        #     if time_diff.seconds < 110:
+        #         break
+        #     print('取得してから2分経過')
+        #     recaptchas.pop(0) #取得してから2分経ったキーは捨てる
+        #     print ('recaptchasの長さ',len(recaptchas))
 
-        exe_captcha = recaptcha
-        recaptchas.pop(0) #使ったキーは捨てる
-        driver[tid].find_element_by_id('g-recaptcha-response').send_keys(exe_captcha['key'])
-        driver[tid].find_element_by_css_selector("input[type='submit']").click()
-        global break_cap
-        break_cap = 1
-        print('recaptcha 突破')
+        # exe_captcha = recaptcha
+        # recaptchas.pop(0) #使ったキーは捨てる
+        # driver[tid].find_element_by_id('g-recaptcha-response').send_keys(exe_captcha['key'])
+        # driver[tid].find_element_by_css_selector("input[type='submit']").click()
+        # global break_cap
+        # break_cap = 1
+        # print('recaptcha 突破')
+
+        time.sleep(60)
+        select_ticket(idx, tid)
         
 def run(idx, start_time):
     
@@ -217,12 +263,12 @@ if __name__ == "__main__":
     for i in range(0,len(browsers)):
         th_objs[i].start()
 
-    while True:
-        if break_cap == 1:
-            break
-        cap_objs = threading.Thread(target=uncaptcha)
-        cap_objs.start()
-        cap_objs.join()
-        time.sleep(60)
+    # while True:
+    #     if break_cap == 1:
+    #         break
+    #     cap_objs = threading.Thread(target=uncaptcha)
+    #     cap_objs.start()
+    #     cap_objs.join()
+    #     time.sleep(60)
 
     time.sleep(1200)
