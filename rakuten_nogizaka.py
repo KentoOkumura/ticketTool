@@ -19,56 +19,97 @@ import re
 import pickle
 import subprocess
 from queue import Queue
+from bs4 import BeautifulSoup
+import lxml
+import os
+
+nbrowser   = 2
+do_proxy   = False
+start_time = '2020-01-25 10:41:00.000000'
 
 th_objs    = [] #スレッドの配列
 driver     = {} #各スレッドのwebdriverオブジェクト格納用
 recaptchas = []
 break_cap  = 0
 recaptcha_page = None
-loopflg = True
+purchase_page  = None
+loopflg    = [None]*nbrowser
+proxy      = [None]*nbrowser
 
-#proc    = subprocess.Popen('c:\\Users\\kento\\Desktop\\Python\\Tor Browser\\Browser\\firefox.exe')
+headers = {'User-Agent':'Mozilla/5.0'}
 options = webdriver.ChromeOptions()
-#proxy   = ['140.227.230.89:60088', '140.227.74.14:3128']
-proxy   = '140.227.74.14:3128'
-#options.add_argument("--proxy-server=socks5://127.0.0.1:9150")
-fifo = Queue()
-for i in proxy:
-    fifo.put(i)
+#proxys  = ['160.16.218.54:80', '118.27.31.50:3128', '118.106.145.247:80', '133.86.253.49:80', '61.115.1.182:80', '47.74.38.43:8118', '61.118.35.94:55725', '150.95.131.174:3128', '133.167.108.124:3128', '140.227.230.89:60088', '140.227.74.14:3128', '133.167.93.190:3128', '140.227.31.224:6000', '140.227.202.194:6000', '140.227.211.209:6000', '140.227.52.41:6000']
+proxys  = ['192.168.0.2:3128', '140.227.230.89:60088', '140.227.31.224:6000', '140.227.52.41:6000', '118.27.31.50:3128', '150.95.131.174:3128', '118.106.145.247:80', '160.16.101.98:80', '126.72.57.78:51929', '160.16.218.54:80']
 
-options.add_argument('--proxy-server=http://%s' % proxy)
+#options.add_argument("--proxy-server=socks5://127.0.0.1:9150")
+#proc    = subprocess.Popen('c:\\Users\\kento\\Desktop\\Python\\Tor Browser\\Browser\\firefox.exe')
+
+fifo = Queue()
+fifo.put('127.0.0.1:9150')
 
 #ブラウザのサイズと表示位置
-# browsers = [
-#     { "size-x": "640", "size-y": "360", "pos-x": "0",   "pos-y": "0"},
-#     { "size-x": "640", "size-y": "360", "pos-x": "640", "pos-y": "0"},
-#     { "size-x": "640", "size-y": "360", "pos-x": "0",   "pos-y": "360"},
-#     { "size-x": "640", "size-y": "360", "pos-x": "640", "pos-y": "360"}
-# ]
-
-browsers = [
-    { "size-x": "240", "size-y": "420", "pos-x": "0",   "pos-y": "300"}
+if nbrowser == 1:
+    browsers = [
+        { "size-x": "1280", "size-y": "720", "pos-x": "0",   "pos-y": "0"}
+    ]
+elif nbrowser == 2:
+    browsers = [
+        { "size-x": "640", "size-y": "720", "pos-x": "0",   "pos-y": "0"},
+        { "size-x": "640", "size-y": "720", "pos-x": "640", "pos-y": "0"}
+    ]
+# elif nbrowser == 2:
+#     browsers = [
+#         { "size-x": "1280", "size-y": "360", "pos-x": "0",   "pos-y": "0"},
+#         { "size-x": "1280", "size-y": "360", "pos-x": "0", "pos-y": "360"}
+#     ]
+elif nbrowser == 4:
+    browsers = [
+        { "size-x": "640", "size-y": "360", "pos-x": "0",   "pos-y": "0"},
+        { "size-x": "640", "size-y": "360", "pos-x": "640", "pos-y": "0"},
+        { "size-x": "640", "size-y": "360", "pos-x": "0",   "pos-y": "360"},
+        { "size-x": "640", "size-y": "360", "pos-x": "640", "pos-y": "360"}
+    ]
+elif nbrowser == 8:
+    browsers = [
+        { "size-x": "240", "size-y": "420", "pos-x": "0",   "pos-y": "0"},
+        { "size-x": "240", "size-y": "420", "pos-x": "320", "pos-y": "0"},
+        { "size-x": "240", "size-y": "420", "pos-x": "640", "pos-y": "0"},
+        { "size-x": "240", "size-y": "420", "pos-x": "960", "pos-y": "0"},
+        { "size-x": "240", "size-y": "420", "pos-x": "0",   "pos-y": "360"},
+        { "size-x": "240", "size-y": "420", "pos-x": "320", "pos-y": "360"},
+        { "size-x": "240", "size-y": "420", "pos-x": "640", "pos-y": "360"},
+        { "size-x": "240", "size-y": "420", "pos-x": "960", "pos-y": "360"}
     ]
 
-# browsers = [
-#     { "size-x": "240", "size-y": "420", "pos-x": "0",   "pos-y": "0"},
-#     { "size-x": "240", "size-y": "420", "pos-x": "320", "pos-y": "0"},
-#     { "size-x": "240", "size-y": "420", "pos-x": "640", "pos-y": "0"},
-#     { "size-x": "240", "size-y": "420", "pos-x": "960", "pos-y": "0"},
-#     { "size-x": "240", "size-y": "420", "pos-x": "0",   "pos-y": "360"},
-#     { "size-x": "240", "size-y": "420", "pos-x": "320", "pos-y": "360"},
-#     { "size-x": "240", "size-y": "420", "pos-x": "640", "pos-y": "360"},
-#     { "size-x": "240", "size-y": "420", "pos-x": "960", "pos-y": "360"}
-# ]
-
-
-start_time      = '2019-12-28 10:00:00.000000'
-#ticket_page     = 'https://ticket.rakuten.co.jp/music/RTCTAEH/?scid=we_twt_free_826aska_20191228'
-ticket_page     = 'https://ticket.rakuten.co.jp/music/jpop/visual/rtdgnig/'
+#ticket_page     = 'https://ticket.rakuten.co.jp/music/jpop/visual/rtdgnig/'
+ticket_page    =  'https://ticket.rakuten.co.jp/music/jpop/idle/rtrcaad/?scid=we_twt_free_mishmash_2020'
 purchase_button = '/html/body/div[2]/div[3]/div/main/article/div/div/div/div/div[6]/div[3]/div[2]/div[2]/div[2]/div/a'
 
+options.add_argument('--ignore-certificate-errors')
+options.add_argument('--ignore-ssl-errors')
+
+def get_proxys():
+    proxyUrl = 'http://www.cybersyndrome.net/plr6.html'
+    html     = requests.get(proxyUrl, headers=headers)
+    soup     = BeautifulSoup(html.text, 'lxml')
+    link     = soup.find(id='n1').text
+    print(link)
+    #link     = soup.find('h1', class_='clearfix').find('span', class_='entrytitle').find('a').get('href')
+    pass
 
 def start_browser(idx, tid):
+    global proxy, fifo, options
+
+    if(do_proxy):
+        proxy[idx] = fifo.get()
+        print(proxy)
+
+        #localhostであればproxy設定しない
+        if(proxy[idx] == '127.0.0.1:9150'):
+            print('localhost')
+            pass
+        else:
+            options.add_argument('--proxy-server=http://%s' % proxy[idx])
     
     browser     = browsers[idx]
     driver[tid] = webdriver.Chrome(executable_path='c:\\Users\\kento\\driver\\chromedriver.exe',options=options)
@@ -89,20 +130,26 @@ def init(idx, tid):
         driver[tid].add_cookie(cookie)
     driver[tid].delete_all_cookies()
 
-    for cookie in cookies:
-        print(cookie)
-
     #クッキー取得
     while True:
         if "楽天会員ログイン" in driver[tid].page_source:
             break
         driver[tid].get('https://rt.tstar.jp/orderreview/mypage')
+        WebDriverWait(driver[tid], 30).until(EC.presence_of_all_elements_located)
+
     driver[tid].find_element_by_id('loginInner_u').send_keys('kentookumura6@gmail.com')
     driver[tid].find_element_by_id('loginInner_p').send_keys('kento5735')
-    driver[tid].find_element_by_class_name('loginButton').click()
+    try:
+        driver[tid].find_element_by_class_name('loginButton').click()
+    except:
+        time.sleep(10)
     pickle.dump(driver[tid].get_cookies() , open(cookie_file,"wb"))
 
-    driver[tid].get('https://rt.tstar.jp/orderreview/mypage')
+    try:
+        driver[tid].get('https://rt.tstar.jp/orderreview/mypage')
+    except:
+        time.sleep(10)
+    WebDriverWait(driver[tid], 30).until(EC.presence_of_all_elements_located)
     cookies = pickle.load(open(cookie_file, "rb"))
     for cookie in cookies:
         driver[tid].add_cookie(cookie)
@@ -110,12 +157,21 @@ def init(idx, tid):
         
 def do_exec(idx, tid):
     
-    global recaptcha_page
-    global loopflg
-    #while True:
-    for n in range(50):
-        if recaptcha_page is None:
-            driver[tid].get(ticket_page)
+    global recaptcha_page, purchase_page, loopflg
+    
+    if purchase_page is not None:
+        try:
+            driver[tid].get(purchase_page)
+        except:
+            time.sleep(10)
+        WebDriverWait(driver[tid], 30).until(EC.presence_of_all_elements_located)
+    
+    for n in range(10):
+        if purchase_page is None:
+            try:
+                driver[tid].get(ticket_page)
+            except:
+                continue
             driver[tid].execute_script("window.scrollTo(0, document.body.scrollHeight);")
             #actions = ActionChains(driver[tid])
             #actions.move_to_element(driver[tid].find_element_by_xpath(purchase_button))
@@ -123,26 +179,37 @@ def do_exec(idx, tid):
         
             try:
                 page1 = driver[tid].find_element_by_xpath(purchase_button).get_attribute('href').split('/agreement')[0]
+                purchase_page = driver[tid].find_element_by_xpath(purchase_button).get_attribute('href')
             except:
                 continue
             page2 = driver[tid].find_element_by_xpath(purchase_button).get_attribute('href').split('/agreement')[1]
-            driver[tid].find_element_by_xpath(purchase_button).click()
+            try:
+                driver[tid].find_element_by_xpath(purchase_button).click()
+            except:
+                continue
             recaptcha_page = page1 + page2 + '/recaptcha'
 
         else:
-            #driver[tid].get(recaptcha_page)
+            #スーパーリロード
+            print('super reload')
             driver[tid].execute_script('location.reload(true);')
+
+        WebDriverWait(driver[tid], 30).until(EC.presence_of_all_elements_located)
         
         if "楽天会員ログイン" in driver[tid].page_source:
             driver[tid].find_element_by_id('loginInner_p').send_keys('kento5735')
-            driver[tid].find_element_by_class_name('loginButton').click()
+            try:
+                driver[tid].find_element_by_class_name('loginButton').click()
+            except:
+                pass
             
-        WebDriverWait(driver[tid], 30).until(EC.presence_of_all_elements_located)            
         #if (driver[tid].current_url == recaptcha_page and not('アクセスが集中している為' in driver[tid].page_source)) or "開催日" in driver[tid].page_source:
         if (driver[tid].current_url == recaptcha_page and ('不正な申込みを防ぐため、認証を行います。チェックを入れて、次へボタンを押してください' in driver[tid].page_source)) or "開催日" in driver[tid].page_source:
-            #pass
-            loopflg = False
+            time.sleep(10)
             break
+        #     #pass
+        #     loopflg[idx] = False
+        #     break
 
         
 def select_ticket(idx, tid):
@@ -174,7 +241,33 @@ def select_ticket(idx, tid):
 #     /html/body/div[1]/div[2]/form/div[1]/div/div[3]/div/table/tbody/tr[1]/td[1]/input
 
 #     /html/body/div[1]/div[2]/form/p/img
-    
+
+def is_bad_proxy(proxy):
+    PermissionTime = 10
+
+    temp_options = webdriver.ChromeOptions()
+    if(do_proxy):
+        temp_options.add_argument('--proxy-server=http://%s' % proxy)
+    driver = webdriver.Chrome(executable_path='c:\\Users\\kento\\driver\\chromedriver.exe',options=temp_options)
+    try:
+        print(proxy)
+        # webサイトへのタイムアウト時間を設定。もしこの時間内にアクセスできないならexceptに入る
+        driver.set_page_load_timeout(PermissionTime)
+        # アクセスして閉じる
+        #driver.get(ticket_page)
+        driver.get('https://rt.tstar.jp/orderreview/mypage')
+        if not "楽天会員ログイン" in driver.page_source:
+            print('bad proxy')
+            driver.close()
+            return False
+        driver.close()
+    except:
+        driver.close()
+        print("タイムアウト")
+        return False
+
+    return True
+
 def uncaptcha():
 
     service_key     = '7faed6a88ee62d38c1e16e8eda0e4a67'         # 2captcha service key API KEY
@@ -204,11 +297,22 @@ def uncaptcha():
     
 def load(idx, tid):
 
-    while(loopflg):
+    global loopflg, proxy, fifo
+    
+    loopflg[idx] = True
+    
+    while(loopflg[idx]):
         do_exec(idx, tid)
-        if not loopflg:
+        if not loopflg[idx]:
             break
-        #クッキー初期化
+        #ブラウザ終了
+        driver[tid].close()
+        #proxy返却
+        if(do_proxy):
+            fifo.put(proxy[idx])
+        #ブラウザ立ち上げ、IP再設定
+        start_browser(idx, tid)
+        #クッキー初期化        
         init(idx, tid)
 
     if driver[tid].current_url == recaptcha_page:
@@ -246,8 +350,12 @@ def run(idx, start_time):
     start_browser(idx, tid)
     #クッキー初期化
     init(idx, tid)
-
     #チケットページアクセス
+    while True:
+        driver[tid].get(ticket_page)
+        if "公演名" in driver[tid].page_source:
+            break
+    #購入ボタンクリック
     scheduler = sched.scheduler(time.time, time.sleep)
     run_at    = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f') - datetime.timedelta(seconds = 0.02)*idx #6 digit
     run_at    = int(time.mktime(run_at.utctimetuple()))
@@ -257,6 +365,14 @@ def run(idx, start_time):
     
 if __name__ == "__main__":
 
+    #global fifo
+
+    if(do_proxy):
+        for i in proxys:
+            if is_bad_proxy(i):
+                fifo.put(i)
+                print(fifo.qsize())
+    
     for idx in range(0,len(browsers)):
         th_objs.append(threading.Thread(target=run, args=(idx, start_time)))
 
