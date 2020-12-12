@@ -10,18 +10,25 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 import getpass
 import requests
 import json
 import threading
 import re
 import pickle
+import subprocess
 
 th_objs    = [] #スレッドの配列
 driver     = {} #各スレッドのwebdriverオブジェクト格納用
 recaptchas = []
 break_cap  = 0
 recaptcha_page = None
+loopflg = True
+
+proc    = subprocess.Popen('c:\\Users\\kento\\Desktop\\Python\\Tor Browser\\Browser\\firefox.exe')
+options = webdriver.ChromeOptions()
+options.add_argument("--proxy-server=socks5://127.0.0.1:9150")
 
 #ブラウザのサイズと表示位置
 # browsers = [
@@ -47,18 +54,36 @@ browsers = [
 # ]
 
 
-start_time = '2019-08-11 12:00:00.000000'
+start_time      = '2019-12-28 10:00:00.000000'
+#ticket_page     = 'https://ticket.rakuten.co.jp/music/RTCTAEH/?scid=we_twt_free_826aska_20191228'
+ticket_page     = 'https://ticket.rakuten.co.jp/music/jpop/visual/rtdgnig/'
+purchase_button = '/html/body/div[2]/div[3]/div/main/article/div/div/div/div/div[6]/div[3]/div[2]/div[2]/div[2]/div/a'
 
 
 def start_browser(idx, tid):
     
-    browser = browsers[idx]
-    driver[tid] = webdriver.Chrome(executable_path='c:\\Users\\kento\\driver\\chromedriver.exe')
+    browser     = browsers[idx]
+    driver[tid] = webdriver.Chrome(executable_path='c:\\Users\\kento\\driver\\chromedriver.exe',options=options)
 
     #位置とサイズ指定
     driver[tid].set_window_size(browser['size-x'], browser['size-y'])
     driver[tid].set_window_position(browser['pos-x'], browser['pos-y'])
 
+def init(idx, tid):
+    
+    cookie_file = 'cookie{}.pkl'.format(idx)
+    pickle.dump(driver[tid].get_cookies() , open(cookie_file,"wb"))
+    cookies     = pickle.load(open(cookie_file, "rb"))
+    
+    #クッキー初期化
+    for cookie in cookies:
+        driver[tid].add_cookie(cookie)
+    driver[tid].delete_all_cookies()
+
+    for cookie in cookies:
+        print(cookie)
+
+    #クッキー取得
     while True:
         if "楽天会員ログイン" in driver[tid].page_source:
             break
@@ -66,9 +91,48 @@ def start_browser(idx, tid):
     driver[tid].find_element_by_id('loginInner_u').send_keys('kentookumura6@gmail.com')
     driver[tid].find_element_by_id('loginInner_p').send_keys('kento5735')
     driver[tid].find_element_by_class_name('loginButton').click()
-    pickle.dump(driver[tid].get_cookies() , open("cookies.pkl","wb"))
+    pickle.dump(driver[tid].get_cookies() , open(cookie_file,"wb"))
 
+    driver[tid].get('https://rt.tstar.jp/orderreview/mypage')
+    cookies = pickle.load(open(cookie_file, "rb"))
+    for cookie in cookies:
+        driver[tid].add_cookie(cookie)
+
+def do_exec(idx, tid):
     
+    global recaptcha_page
+    global loopflg
+    #while True:
+    for n in range(10):
+        if recaptcha_page is None:
+            driver[tid].get(ticket_page)
+            driver[tid].execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            actions = ActionChains(driver[tid])
+            #actions.move_to_element(driver[tid].find_element_by_xpath(purchase_button))
+            actions.perform()
+        
+            try:
+                page1 = driver[tid].find_element_by_xpath(purchase_button).get_attribute('href').split('/agreement')[0]
+            except:
+                continue
+            page2 = driver[tid].find_element_by_xpath(purchase_button).get_attribute('href').split('/agreement')[1]
+            driver[tid].find_element_by_xpath(purchase_button).click()
+            recaptcha_page = page1 + page2 + '/recaptcha'
+
+        else:
+            driver[tid].get(recaptcha_page)
+        
+        if "楽天会員ログイン" in driver[tid].page_source:
+            driver[tid].find_element_by_id('loginInner_p').send_keys('kento5735')
+            driver[tid].find_element_by_class_name('loginButton').click()
+            
+        WebDriverWait(driver[tid], 30).until(EC.presence_of_all_elements_located)            
+        #if (driver[tid].current_url == recaptcha_page and not('アクセスが集中している為' in driver[tid].page_source)) or "開催日" in driver[tid].page_source:
+        if (driver[tid].current_url == recaptcha_page and ('不正な申込みを防ぐため、認証を行います。チェックを入れて、次へボタンを押してください' in driver[tid].page_source)) or "開催日" in driver[tid].page_source:
+            #pass
+            loopflg = False
+            break
+        
 def uncaptcha():
 
     service_key     = '7faed6a88ee62d38c1e16e8eda0e4a67'         # 2captcha service key API KEY
@@ -86,7 +150,7 @@ def uncaptcha():
     fetch_url  = "http://2captcha.com/res.php?key="+ service_key + "&action=get&id=" + captcha_id
         
     while True:
-        time.sleep(0.5)
+        time.sleep(3.0)
         resp = requests.get(fetch_url)
         if resp.text[0:2] == 'OK':
             break
@@ -94,35 +158,15 @@ def uncaptcha():
     print('Google response token: ', resp.text[3:])
     recaptchas.append( {'get_time':datetime.datetime.now(), 'key':resp.text[3:]} )
     print ('recaptchasの長さ',len(recaptchas)) 
-
     
 def load(idx, tid):
-    
-    global recaptcha_page
-    while True:
-        if recaptcha_page is None:
-            #driver[tid].get('https://ticket.rakuten.co.jp/music/jpop/idle/rtodaal/')
-            driver[tid].get('https://ticket.rakuten.co.jp/music/kpop/RTKTAEI/?scid=we_twt_free_pentagon_kn_20191213')
-            driver[tid].execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        
-            try:
-                page1 = driver[tid].find_element_by_xpath('/html/body/div[2]/div[3]/div/main/article/div/div/div/div/div[6]/div[3]/div[2]/div[2]/div[2]/div/a').get_attribute('href').split('/agreement')[0]
-            except:
-                continue
 
-            page2 = driver[tid].find_element_by_xpath('/html/body/div[2]/div[3]/div/main/article/div/div/div/div/div[6]/div[3]/div[2]/div[2]/div[2]/div/a').get_attribute('href').split('/agreement')[1]
-            driver[tid].find_element_by_xpath('/html/body/div[2]/div[3]/div/main/article/div/div/div/div/div[6]/div[3]/div[2]/div[2]/div[2]/div/a').click()
-            recaptcha_page = page1 + page2 + '/recaptcha'
-
-        else:
-            driver[tid].get(recaptcha_page)
-        
-        if "楽天会員ログイン" in driver[tid].page_source:
-            driver[tid].find_element_by_id('loginInner_p').send_keys('kento5735')
-            driver[tid].find_element_by_class_name('loginButton').click()
-        #if (driver[tid].current_url == recaptcha_page and not('アクセスが集中している為' in driver[tid].page_source)) or "開催日" in driver[tid].page_source:
-        if (driver[tid].current_url == recaptcha_page and ('私はロボットではありません' in driver[tid].page_source)) or "開催日" in driver[tid].page_source:
+    while(loopflg):
+        do_exec(idx, tid)
+        if not loopflg:
             break
+        #クッキー初期化
+        init(idx, tid)
 
     if driver[tid].current_url == recaptcha_page:
         wait = WebDriverWait(driver[tid], 5)
@@ -148,13 +192,14 @@ def load(idx, tid):
         global break_cap
         break_cap = 1
         print('recaptcha 突破')
-
-
+        
 def run(idx, start_time):
-
+    
     tid = threading.get_ident()
     #ブラウザ立ち上げ
     start_browser(idx, tid)
+    #クッキー初期化
+    init(idx, tid)
 
     #チケットページアクセス
     scheduler = sched.scheduler(time.time, time.sleep)
@@ -162,7 +207,7 @@ def run(idx, start_time):
     run_at    = int(time.mktime(run_at.utctimetuple()))
     scheduler.enterabs(run_at, 1, load, (idx, tid,))
     scheduler.run()
-
+    
     
 if __name__ == "__main__":
 
@@ -178,8 +223,6 @@ if __name__ == "__main__":
         cap_objs = threading.Thread(target=uncaptcha)
         cap_objs.start()
         cap_objs.join()
-        # while cap_objs.is_alive():
-        #     pass
         time.sleep(60)
 
     time.sleep(1200)
